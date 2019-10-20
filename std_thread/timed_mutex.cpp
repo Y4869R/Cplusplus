@@ -11,7 +11,9 @@ using namespace std;
 
 std::chrono::milliseconds interval(100);
 
-std::mutex m_mutex;
+//std::mutex m_mutex;
+//额外允许你传递一个时间段或时间点，用来定义多长时间内它可以尝试捕获一个lock。
+std::timed_mutex m_mutex;
 //两个线程都能修改的变量,需要mutex的保护
 int job_shared = 0;
 
@@ -19,21 +21,30 @@ int job_shared = 0;
 int job_exclusive = 0;
 
 //只修改job_shared
+//使用RAII智能锁, std::lock_guard
 void job1() {
-  m_mutex.lock();
+  //构造lock_guard的时候自动lock()
+  std::lock_guard<std::timed_mutex> lockg(m_mutex);
+  //m_mutex.lock();
   std::cout << "job1 shared job_shared , keep it for 5ms\n";
   std::this_thread::sleep_for(5 * interval);
   ++job_shared;
-  m_mutex.unlock();
+  //m_mutex.unlock();
+  //析构lock_guard的时候自动unlock()
 }
 
 //修改job_shared和job_exclusive
+//std::lock_guard不支持try_lock()
+//使用std::unique_lock
 void job2() {
   while(true) {
-    if(m_mutex.try_lock()) {
+    //if(m_mutex.try_lock()) {
+    std::unique_lock<std::timed_mutex> ulock(m_mutex, std::defer_lock);
+    //尝试在指定时间内获取锁
+    if(ulock.try_lock_for(3*interval)) {
       ++job_shared;
       std::cout << "job2 lock mutex success, shared(" << job_shared << ")\n";
-      m_mutex.unlock();
+      //m_mutex.unlock();
       return;
     } else {
       ++job_exclusive;

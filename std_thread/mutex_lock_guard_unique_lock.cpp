@@ -41,6 +41,7 @@ void job2() {
     //等同于
     //std::unique_lock<std::mutex> ulock(m_mutex, std::defer_lock); ulock.try_lock();
     if(ulock) {
+      ++job_shared;
       std::cout << "job2 lock mutex success, shared(" << job_shared << ")\n";
       //m_mutex.unlock();
       return;
